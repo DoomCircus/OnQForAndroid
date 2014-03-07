@@ -13,7 +13,7 @@ My apologies, but code commenting is currently minimal due to the time crunch fo
 completion date is approximately the end of March) and there is still more functionality that is missing other than
 the incomplete methods in DeckManager.java
 
-OnQ files created by DoomCircus (Francis Kurevija):
+OnQ files created by Francis Kurevija:
 ======================================================================================================================
 res/layout:
 - activity_login.xml
