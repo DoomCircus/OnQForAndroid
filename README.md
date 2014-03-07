@@ -23,6 +23,8 @@ src/com/example/onq:
 - Login.java
 - DeckManager.java
 
+All other files created by other capstone group members or auto-generated
+
 About OnQ for Android:
 ======================================================================================================================
 OnQ is a mobile app being developed on the Android platform that will allow users who are subscribed to the OnQ
