@@ -51,7 +51,7 @@ public class BumpDeck extends Activity implements CreateNdefMessageCallback,OnNd
 	private ListView lv;
 	private List<QCard> cardsextra = new ArrayList<QCard>();
 	private List<QCard> reccard = new ArrayList<QCard>();
-	private ImageView ad;
+	//private ImageView ad;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -76,7 +76,7 @@ public class BumpDeck extends Activity implements CreateNdefMessageCallback,OnNd
 		// Register callback to listen for message-sent success
 		mNfcAdapter.setOnNdefPushCompleteCallback(this, this);
 		cardsextra =  getIntent().getParcelableArrayListExtra("Cards");
-		ad = (ImageView) findViewById(R.id.adView);
+		//ad = (ImageView) findViewById(R.id.adView);
 		m =(MainActivity) MainActivity.tmpActivity; 
 		int i = 0;
 		while( i < m.getqCardSetList().size())
@@ -101,7 +101,7 @@ public class BumpDeck extends Activity implements CreateNdefMessageCallback,OnNd
 				adb.setPositiveButton("Ok", null);
 				adb.show();   
 				m.setTheSetName(lv.getItemAtPosition(arg2).toString());
-				if(m.getTheSetName() == "BeerQuestions"){
+				/*if(m.getTheSetName() == "BeerQuestions"){
 					ad.setBackgroundResource(R.drawable.beerad);
 				}
 				else if(m.getTheSetName() == "C++Questions"){
@@ -109,7 +109,7 @@ public class BumpDeck extends Activity implements CreateNdefMessageCallback,OnNd
 				}
 				else if(m.getTheSetName() == "JavaQuestions"){
 					ad.setBackgroundResource(R.drawable.javaad);
-				}
+				}*/
 			}
 
 		});

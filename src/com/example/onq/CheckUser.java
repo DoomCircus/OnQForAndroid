@@ -38,7 +38,7 @@ public class CheckUser extends Activity {
 			{
 				tokenFound = false;
 			}
-			if (prefs.getString("SecurityToken", "").equals(""))
+			if (prefs.getString("SecurityToken", "").isEmpty())
 			{
 				tokenFound = false;
 			}

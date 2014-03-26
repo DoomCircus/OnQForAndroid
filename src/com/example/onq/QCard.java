@@ -9,11 +9,12 @@ import android.os.Parcelable;
 @SuppressWarnings("serial")
 public class QCard implements Parcelable,Serializable {
 
-	
-	private Bitmap qPic;
+	private int cardID;
+	private String setName;
 	private String question;
 	private String answer;
-	private String setName;
+	private Bitmap qPic;
+	
 	//Constructor
 	public QCard() {
 		super();
@@ -27,11 +28,17 @@ public class QCard implements Parcelable,Serializable {
 	}
 	
 	//Getters and Setters
-	public Bitmap getqPic() {
-		return qPic;
+	public int getCardID() {
+		return cardID;
 	}
-	public void setqPic(Bitmap qPic) {
-		this.qPic = qPic;
+	public void setCardID(int cardID) {
+		this.cardID = cardID;
+	}
+	public String getSetName() {
+		return setName;
+	}
+	public void setSetName(String setName) {
+		this.setName = setName;
 	}
 	public String getQuestion() {
 		return question;
@@ -44,6 +51,12 @@ public class QCard implements Parcelable,Serializable {
 	}
 	public void setAnswer(String answer) {
 		this.answer = answer;
+	}
+	public Bitmap getqPic() {
+		return qPic;
+	}
+	public void setqPic(Bitmap qPic) {
+		this.qPic = qPic;
 	}
 
 	@Override
@@ -59,14 +72,6 @@ public class QCard implements Parcelable,Serializable {
 		dest.writeString(getAnswer());
 	
 		
-	}
-	
-	public String getSetName() {
-		return setName;
-	}
-
-	public void setSetName(String setName) {
-		this.setName = setName;
 	}
 
 	public static final Parcelable.Creator<QCard> CREATOR = 

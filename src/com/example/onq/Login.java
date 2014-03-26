@@ -46,6 +46,8 @@ public class Login extends Activity {
 		loginButton = (Button)findViewById(R.id.LoginButton);
 		errorText = (TextView)findViewById(R.id.errorText);
 		
+		//Add offline mode option
+		
 		loginButton.setOnClickListener(new View.OnClickListener() {
 
 			@Override
@@ -94,7 +96,7 @@ public class Login extends Activity {
 	
 	protected void ValidateUser(String username, String password)
 	{
-		String onqURL = "http://192.168.0.23:1337/onq/qmobile/login/"+username+"/"+password;
+		String onqURL = "http://192.168.0.15:1337/onq/qmobile/login/"+username+"/"+password;
 		//String onqURL = "http://142.156.75.146:1337/onq/qmobile/login/"+username+"/"+password;
 		HttpClient Client = new DefaultHttpClient();
 		try
