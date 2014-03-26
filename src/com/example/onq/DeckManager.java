@@ -141,7 +141,7 @@ public class DeckManager {
 					// Thread to stop network calls on the UI thread
 					public void run() {
 						try {
-							CallServer("PULL", username, password);
+							CallServer("PULL", username, password, null);
 						} catch (Exception e) {
 							e.printStackTrace();
 						}
@@ -169,16 +169,16 @@ public class DeckManager {
 		}
 	}
 
-	private void CallServer(String action, String username, String password, String... jsonDecks) {
+	private void CallServer(String action, String username, String password, String jsonDecks) {
 		String onqURL = "";
 
 		if (action.equals("PULL")) {
 			onqURL = "http://192.168.0.15:1337/onq/qmobile/pullDecks/" + username + "/" + password;
-			//onqURL = "http://142.156.75.146:1337/onq/qmobile/pullDecks/"+username+"/"+password;
+			//onqURL = "http://142.156.74.223:1337/onq/qmobile/pullDecks/"+username+"/"+password;
 		} else if (action.equals("PUSH")) {
 			onqURL = "http://192.168.0.15:1337/onq/qmobile/uploadDecks/" + username + "/" + password
 					+ "/" + prefs.getString("SecurityToken", "") + "/" + jsonDecks;
-			//onqURL = "http://142.156.75.146:1337/onq/qmobile/uploadDecks/" + username + "/" + password
+			//onqURL = "http://142.156.74.223:1337/onq/qmobile/uploadDecks/" + username + "/" + password
 			//		+ "/" + prefs.getString("SecurityToken", "") + "/" + jsonDecks;
 		}
 		HttpClient Client = new DefaultHttpClient();
