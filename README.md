@@ -23,6 +23,9 @@ src/com/example/onq:
 - Login.java
 - DeckManager.java
 
+Files with Contributed code:
+- MainActivity.java (all code relating to API connectivity)
+
 All other files created by other capstone group members or auto-generated
 
 About OnQ for Android:
