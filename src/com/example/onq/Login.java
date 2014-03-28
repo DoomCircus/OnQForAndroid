@@ -62,7 +62,7 @@ public class Login extends Activity {
 				final String username = usernameText.getText().toString();
 				final String password = passwordText.getText().toString();
 				
-				new Thread(new Runnable()
+				Thread t = new Thread(new Runnable()
 				{
 				    //Thread to stop network calls on the UI thread
 				    public void run()
@@ -77,15 +77,22 @@ public class Login extends Activity {
 				            error = "[Login]" + e.getMessage();
 				        }
 				    }
-				}).start();
+				});
+				
+				t.start();
 				
 				while(waiting)
 				{
 					if(tokenReceived)
 					{
+						if(t != null)
+						{
+						      t.interrupt();
+						      t = null;
+						}
+						waiting = false;
 						Intent intent = new Intent(Login.this, MainActivity.class);
 						startActivity(intent);
-						waiting = false;
 					}
 				}
 				
@@ -96,8 +103,8 @@ public class Login extends Activity {
 	
 	protected void ValidateUser(String username, String password)
 	{
-		String onqURL = "http://192.168.0.15:1337/onq/qmobile/login/"+username+"/"+password;
-		//String onqURL = "http://142.156.75.146:1337/onq/qmobile/login/"+username+"/"+password;
+		String onqURL = "http://192.168.0.29:1337/onq/qmobile/login/"+username+"/"+password;
+		//String onqURL = "http://142.156.74.223:1337/onq/qmobile/login/"+username+"/"+password;
 		HttpClient Client = new DefaultHttpClient();
 		try
 		{

@@ -15,9 +15,11 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
+import android.util.Log;
 
 public class DeckManager {
 
@@ -26,6 +28,7 @@ public class DeckManager {
 	private SharedPreferences prefs;
 	private volatile boolean responseReceived;
 	private volatile boolean waiting;
+	private volatile String jsonStr;
 	private volatile String serverResponse;
 	private boolean decksParsed;
 	private volatile String toastMsg;
@@ -39,6 +42,8 @@ public class DeckManager {
 		localSet = m.getqCardSetList();
 		prefs = PreferenceManager.getDefaultSharedPreferences(m);
 		if (prefs.equals(null)) {
+			toastMsg = "A problem has occured. If you are a registered user of OnQ, delete this app"
+					+ "and try reinstalling it.";
 			throw new NullPointerException("[DeckManager]No StoredPreferences exist for OnQ");
 		}
 	}
@@ -51,7 +56,7 @@ public class DeckManager {
 			if (decksParsed)
 			{
 				m.setqCardSetList(localSet);
-				toastMsg = "Your decks were successfully loaded from app data!";
+				//toastMsg = "Your decks were successfully loaded from app data!";
 			}
 		}
 		else
@@ -61,15 +66,15 @@ public class DeckManager {
 	}
 	
 	public void SaveDecksToPrefs() {
-		String jsonStr = EncodeJSONDecks();
+		jsonStr = EncodeJSONDecks();
 		if (jsonStr.equals("FAIL"))
 		{
-			toastMsg = "Your decks were successfully updated, but failed to save to app data.";
+			toastMsg = "Your decks failed to save to app data.";
 		}
 		else
 		{
 			prefs.edit().putString("UserDecks", jsonStr).commit();
-			toastMsg = "Your decks were successfully updated and saved to app data.";
+			//toastMsg = "Your decks were successfully saved to app data!";
 		}
 	}
 	
@@ -77,14 +82,52 @@ public class DeckManager {
 		
 		final String username = prefs.getString("Username", "");
 		final String password = prefs.getString("Password", "");
-		LoadDecksFromPrefs();
-		String jsonStr = EncodeJSONDecks();
-		try {
-			jsonStr = URLEncoder.encode(jsonStr, "ISO-8859-1");
-		} catch (UnsupportedEncodingException e) {
-			e.printStackTrace();
+		
+		if (!username.isEmpty() && !password.isEmpty()) {
+			jsonStr = EncodeJSONDecks();
+			try {
+				jsonStr = URLEncoder.encode(jsonStr, "ISO-8859-1");
+			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
+			}
+			
+			responseReceived = false;
+			waiting = true;
+
+			Thread t = new Thread(new Runnable() {
+				// Thread to stop network calls on the UI thread
+				public void run() {
+					try {
+						CallServer("PUSH", username, password, jsonStr);
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+				}
+			});
+
+			t.start();
+
+			while (waiting) {
+				if (responseReceived) {
+					/*if(t != null)
+					{
+						t.interrupt();
+						t = null;
+					}*/
+					waiting = false;
+					// decode JSON object returned from server
+					if (DecodeJSONResponse(serverResponse) == 2)
+					{
+						ParseDecks(serverResponse);
+						if (decksParsed)
+						{
+							m.setqCardSetList(localSet);
+							//toastMsg = "Your decks were successfully saved to the OnQ server!";
+						}
+					}
+				}
+			}
 		}
-		CallServer("PUSH", username, password, jsonStr);
 	}
 	
 	public String EncodeJSONDecks() {
@@ -132,37 +175,45 @@ public class DeckManager {
 		final String username = prefs.getString("Username", "");
 		final String password = prefs.getString("Password", "");
 
-		if (!username.isEmpty()) {
-			if (!password.isEmpty()) {
-				responseReceived = false;
-				waiting = true;
+		if (!username.isEmpty() && !password.isEmpty()) {
+			responseReceived = false;
+			waiting = true;
 
-				new Thread(new Runnable() {
-					// Thread to stop network calls on the UI thread
-					public void run() {
-						try {
-							CallServer("PULL", username, password, null);
-						} catch (Exception e) {
-							e.printStackTrace();
-						}
+			Thread t = new Thread(new Runnable() {
+				// Thread to stop network calls on the UI thread
+				public void run() {
+					try {
+						CallServer("PULL", username, password, null);
+					} catch (Exception e) {
+						e.printStackTrace();
 					}
-				}).start();
+				}
+			});
 
-				while (waiting) {
-					if (responseReceived) {
-						// decode JSON object returned from server
-						if (DecodeJSONResponse(serverResponse) == 2)
+			t.start();
+
+			while (waiting) {
+				if (responseReceived) {
+					/*if(t != null)
+					{
+						t.interrupt();
+						t = null;
+					}*/
+					waiting = false;
+					// decode JSON object returned from server
+					int ret = DecodeJSONResponse(serverResponse);
+					if (ret == 1 || ret == 2)
+					{
+						if (ret == 2)
 						{
 							ParseDecks(serverResponse);
 							if (decksParsed)
 							{
 								m.setqCardSetList(localSet);
 								//Update StoredPreferences with parsed decks
-								SaveDecksToPrefs();
-								toastMsg = "Your decks were successfully updated and saved in app data!";
+								toastMsg = "Your decks were successfully loaded from the OnQ server!";
 							}
 						}
-						waiting = false;
 					}
 				}
 			}
@@ -173,13 +224,25 @@ public class DeckManager {
 		String onqURL = "";
 
 		if (action.equals("PULL")) {
-			onqURL = "http://192.168.0.15:1337/onq/qmobile/pullDecks/" + username + "/" + password;
+			onqURL = "http://192.168.0.29:1337/onq/qmobile/pullDecks/" + username + "/" + password;
 			//onqURL = "http://142.156.74.223:1337/onq/qmobile/pullDecks/"+username+"/"+password;
 		} else if (action.equals("PUSH")) {
-			onqURL = "http://192.168.0.15:1337/onq/qmobile/uploadDecks/" + username + "/" + password
-					+ "/" + prefs.getString("SecurityToken", "") + "/" + jsonDecks;
+			String token = prefs.getString("SecurityToken", "");
+			String asciiToken = "";
+			
+			for (int i = 0; i < token.length(); ++i)
+			{
+				asciiToken += (int)token.charAt(i);
+				if (i < token.length() - 1)
+				{
+					asciiToken += "+";
+				}
+			}
+			
+			onqURL = "http://192.168.0.29:1337/onq/qmobile/uploadDecks/" + username + "/" + password
+					+ "/" + asciiToken + "/" + jsonDecks;
 			//onqURL = "http://142.156.74.223:1337/onq/qmobile/uploadDecks/" + username + "/" + password
-			//		+ "/" + prefs.getString("SecurityToken", "") + "/" + jsonDecks;
+			//		+ "/" + asciiToken + "/" + jsonDecks;
 		}
 		HttpClient Client = new DefaultHttpClient();
 		try {
@@ -196,24 +259,35 @@ public class DeckManager {
 			}
 		} catch (Exception ex) {
 			ex.printStackTrace();
+			Log.e("CallServer", ex.getMessage());
 			waiting = false;
 		}
 	}
 
 	public int DecodeJSONResponse(String jsonStr) {
 		try {
-			// Convert String to json object
-			JSONObject json = new JSONObject(jsonStr);
-
-			if (json.has("Error")) {
-				serverResponse = json.getString("Error");
-				return 0;
-			} else if (json.has("Success")) {
-				serverResponse = json.getString("Success");
-				return 1;
-			} else {
+			Object obj = new JSONTokener(jsonStr).nextValue();
+			
+			if (obj instanceof JSONObject)
+			{
 				return 2;
 			}
+			else if (obj instanceof JSONArray)
+			{
+				//Parse the response code from the server
+				JSONArray jsonArr = new JSONArray(jsonStr);
+				
+				if (jsonArr.getString(0).equals("Error")) {
+					toastMsg = jsonArr.getString(1);
+					return 0;
+				} else if (jsonArr.getString(0).equals("Success")) {
+					toastMsg = jsonArr.getString(1);
+					return 1;
+				}
+			}
+			toastMsg = "The OnQ server returned an unexpected error, please contact an OnQ administrator.";
+			return -1;
+
 		} catch (JSONException je) {
 			je.printStackTrace();
 			toastMsg = je.getMessage();
@@ -252,25 +326,12 @@ public class DeckManager {
 				newDeck.setDescription(deck.getString("description"));
 				newDeck.setPrivatePublic(deck.getInt("privatePublic"));
 				
-				//Check if the deck already exists in the local set
-				for (QCardSet qcs : localSet)
-				{
-					if (qcs.getDeckID() == newDeck.getDeckID())
-					{
-						//If the deck already exists, set newDeck to show that
-						//This way we can move on and check if the cards in the deck are identical too
-						newDeck = qcs;
-						localSet.remove(qcs);
-					}
-				}
-				
 				JSONArray deckCards = jsonDeck.getJSONArray("Qdeckcards");
 				List<QCard> newCards = new ArrayList<QCard>();
 				
 				//Parse card data from JSONArray of cards into List<QCard>
 				for (int j = 0; j < deckCards.length(); ++j)
 				{
-					boolean exists = false;
 					JSONObject card = deckCards.getJSONObject(j).getJSONObject("Qcards");
 					QCard newCard = new QCard();
 					
@@ -279,19 +340,37 @@ public class DeckManager {
 					newCard.setQuestion(card.getString("question"));
 					newCard.setAnswer(card.getString("answer"));
 					
-					for (QCard qc : newCards)
+					newCards.add(newCard);
+				}
+				
+				//Check if the deck already exists in the local set
+				for (QCardSet qcs : localSet)
+				{
+					if (qcs.getDeckID() == newDeck.getDeckID())
 					{
-						if (qc.getCardID() == newCard.getCardID())
+						List<QCard> oldCards = qcs.getqCardsList();
+						//Check if the card already exists in the current deck
+						for (QCard oldQC : oldCards)
 						{
-							exists = true;
+							boolean exists = false;
+							for (QCard newQC : newCards)
+							{
+								if (oldQC.getCardID() == newQC.getCardID())
+								{
+									exists = true;
+									break;
+								}
+							}
+							if (!exists)
+							{
+								newCards.add(oldQC);
+							}
 						}
-					}
-					if (!exists)
-					{
-						newCards.add(newCard);
+						newDeck.setqCardsList(newCards);
+						localSet.remove(qcs);
+						break;
 					}
 				}
-				newDeck.setqCardsList(newCards);
 				localSet.add(newDeck);
 			}
 			decksParsed = true;

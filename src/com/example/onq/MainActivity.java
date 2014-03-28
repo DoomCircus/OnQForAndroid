@@ -83,10 +83,11 @@ public class MainActivity extends Activity {
 				//**********************************************
 				//if (userAllowsNetworkUser)
 				deckManager.PullDecksFromServer();
+				Toast.makeText(MainActivity.this, deckManager.getToastMessage(), Toast.LENGTH_LONG).show();
 				deckManager.SaveDecksToPrefs();
+				//errorText.setText(deckManager.getToastMessage());
 				//else
 				//deckManager.LoadDecksFromPrefs();
-				Toast.makeText(MainActivity.this, deckManager.getToastMessage(), Toast.LENGTH_LONG).show();
 				
 				Intent intent = new Intent(MainActivity.this, BumpDeck.class);
 				intent = intent.putExtra("Cards", cardList);
@@ -112,14 +113,33 @@ public class MainActivity extends Activity {
 			@Override
 			public void onClick(View v) {
 				deckManager.LoadDecksFromPrefs();
+				//errorText.setText(deckManager.getToastMessage());
 				deckManager.PushDecksToServer();
+				//Display toast then make the app wait to close so the user sees the message
+				Toast.makeText(MainActivity.this, deckManager.getToastMessage(), Toast.LENGTH_LONG).show();
 				//Add optional offline save
+				
 				Intent intent = new Intent(Intent.ACTION_MAIN);
 				intent.addCategory(Intent.CATEGORY_HOME);
 				intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 				startActivity(intent);
 			}
 		});
+	}
+	
+	@Override
+	public void onBackPressed(){
+		deckManager.LoadDecksFromPrefs();
+		//errorText.setText(deckManager.getToastMessage());
+		deckManager.PushDecksToServer();
+		//Display toast then make the app wait to close so the user sees the message
+		Toast.makeText(MainActivity.this, deckManager.getToastMessage(), Toast.LENGTH_LONG).show();
+		//Add optional offline save
+		
+		Intent intent = new Intent(Intent.ACTION_MAIN);
+		intent.addCategory(Intent.CATEGORY_HOME);
+		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+		startActivity(intent);
 	}
 	
 	private void populateBeerCards(){
@@ -288,16 +308,4 @@ public class MainActivity extends Activity {
 	public void setTheSetName(String theSetName) {
 		this.theSetName = theSetName;
 	}
-	
-	@Override
-	public void onBackPressed(){
-		deckManager.LoadDecksFromPrefs();
-		deckManager.PushDecksToServer();
-		//Add optional offline save
-		Intent intent = new Intent(Intent.ACTION_MAIN);
-		intent.addCategory(Intent.CATEGORY_HOME);
-		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-		startActivity(intent);
-	}
-
 }
