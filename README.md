@@ -3,10 +3,6 @@ OnQForAndroid
 
 OnQ Android app
 
-Note to anyone viewing this repo:
-======================================================================================================================
-Please ignore the first couple of pointless commits/reverts, still getting used to switching to GitHub from SVN
-
 Note about OnQ source code:
 ======================================================================================================================
 My apologies, but code commenting is currently minimal due to the time crunch for getting this app finished (planned
@@ -22,6 +18,7 @@ src/com/example/onq:
 - CheckUser.java
 - Login.java
 - DeckManager.java
+- ConnectionManager.java
 
 Files with Contributed code:
 - MainActivity.java (all code relating to API connectivity)
