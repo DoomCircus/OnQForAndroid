@@ -1,14 +1,5 @@
 package com.example.onq;
 
-import java.io.ByteArrayOutputStream;
-
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.StatusLine;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
@@ -30,10 +21,11 @@ public class Login extends Activity {
 	protected Button loginButton;
 	protected volatile TextView errorText;
 	protected Intent intent;
+	private final int toastTime = 5;
 	
-	protected volatile boolean tokenReceived;
+	/*protected volatile boolean tokenReceived;
 	protected volatile boolean waiting;
-	protected volatile String error;
+	protected volatile String error;*/
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -45,6 +37,7 @@ public class Login extends Activity {
 		passwordText = (EditText)findViewById(R.id.password);
 		loginButton = (Button)findViewById(R.id.LoginButton);
 		errorText = (TextView)findViewById(R.id.errorText);
+		prefs = PreferenceManager.getDefaultSharedPreferences(this);
 		
 		//Add offline mode option
 		
@@ -53,8 +46,8 @@ public class Login extends Activity {
 			@Override
 			public void onClick(View v) {
 				
-				tokenReceived = false;
-				waiting = true;
+				ConnectionManager.responseReceived = false;
+				ConnectionManager.waiting = true;
 				
 				InputMethodManager imm = (InputMethodManager)getSystemService(Context.INPUT_METHOD_SERVICE);
 				imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
@@ -69,88 +62,66 @@ public class Login extends Activity {
 				    {
 				        try
 				        {
-				        	ValidateUser(username, password);
+				        	ConnectionManager.CallServer("LOGIN", username, password, null, null);
 				        }
 				        catch (Exception e)
 				        {
 				            e.printStackTrace();
-				            error = "[Login]" + e.getMessage();
+				            Toast.makeText(Login.this, e.getMessage(), toastTime).show();
 				        }
 				    }
 				});
 				
 				t.start();
 				
-				while(waiting)
+				while(ConnectionManager.waiting)
 				{
-					if(tokenReceived)
+					if(ConnectionManager.responseReceived)
 					{
-						if(t != null)
+						/*if(t != null)
 						{
 						      t.interrupt();
 						      t = null;
+						}*/
+						ConnectionManager.waiting = false;
+						
+						String tmp = ConnectionManager.serverResponse.substring(1,
+								ConnectionManager.serverResponse.length()-1);
+						String[]resPieces = tmp.split(",");
+						
+						for (int i = 0; i < resPieces.length; ++i)
+						{
+							resPieces[i] = resPieces[i].substring(1, resPieces[i].length()-1);
 						}
-						waiting = false;
+						
+						if (resPieces[0].equals("SecurityToken"))
+						{
+							prefs.edit().putString("SecurityToken", resPieces[1]).commit();
+							prefs.edit().putString("Username", username).commit();
+							prefs.edit().putString("Password", password).commit();
+							ConnectionManager.responseReceived = true;
+						}
+						else if (resPieces[0].equals("Error"))
+						{
+							ConnectionManager.toastMsg = resPieces[1];
+							break;
+						}
+						else
+						{
+							ConnectionManager.toastMsg = 
+									"Unexpected issue encountered, please contact the OnQ development team.";
+							break;
+						}
+						
 						Intent intent = new Intent(Login.this, MainActivity.class);
 						startActivity(intent);
 					}
 				}
 				
-				errorText.setText(error);
+				errorText.setText("[Login]Exception occured while attempting to login: "+
+									ConnectionManager.toastMsg);
 			}
 		});
-	}
-	
-	protected void ValidateUser(String username, String password)
-	{
-		String onqURL = "http://192.168.0.29:1337/onq/qmobile/login/"+username+"/"+password;
-		//String onqURL = "http://142.156.74.223:1337/onq/qmobile/login/"+username+"/"+password;
-		HttpClient Client = new DefaultHttpClient();
-		try
-		{
-			HttpGet httpget = new HttpGet(onqURL);
-			String serverString = "";
-			HttpResponse response = Client.execute(httpget);
-			StatusLine statusLine = response.getStatusLine();
-			
-			if (statusLine.getStatusCode() == HttpStatus.SC_OK)
-			{
-				ByteArrayOutputStream out = new ByteArrayOutputStream();
-				response.getEntity().writeTo(out);
-				out.close();
-				serverString = out.toString();
-				String tmp = serverString.substring(1, serverString.length()-1);
-				String[]resPieces = tmp.split(",");
-				
-				for (int i = 0; i < resPieces.length; ++i)
-				{
-					resPieces[i] = resPieces[i].substring(1, resPieces[i].length()-1);
-				}
-				
-				if (resPieces[0].equals("SecurityToken"))
-				{
-					prefs = PreferenceManager.getDefaultSharedPreferences(this);
-					prefs.edit().putString("SecurityToken", resPieces[1]).commit();
-					prefs.edit().putString("Username", username).commit();
-					prefs.edit().putString("Password", password).commit();
-					tokenReceived = true;
-				}
-				else if (resPieces[0].equals("Error"))
-				{
-					error = resPieces[1];
-					waiting = false;
-				}
-				else
-				{
-					throw new Exception("Unexpected issue encountered, please contact the OnQ development team.");
-				}
-			}
-		}
-		catch(Exception ex){
-			ex.printStackTrace();
-			error = "[Login]Exception occured while attempting to login: "+ex.getMessage();
-			waiting = false;
-		}
 	}
 	
 	@Override

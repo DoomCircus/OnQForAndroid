@@ -1,17 +1,10 @@
 package com.example.onq;
 
-import java.io.ByteArrayOutputStream;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.StatusLine;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -19,17 +12,13 @@ import org.json.JSONTokener;
 
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
-import android.util.Log;
 
 public class DeckManager {
 
 	private MainActivity m;
 	private List<QCardSet> localSet;
 	private SharedPreferences prefs;
-	private volatile boolean responseReceived;
-	private volatile boolean waiting;
 	private volatile String jsonStr;
-	private volatile String serverResponse;
 	private boolean decksParsed;
 	private volatile String toastMsg;
 	
@@ -44,7 +33,7 @@ public class DeckManager {
 		if (prefs.equals(null)) {
 			toastMsg = "A problem has occured. If you are a registered user of OnQ, delete this app"
 					+ "and try reinstalling it.";
-			throw new NullPointerException("[DeckManager]No StoredPreferences exist for OnQ");
+			throw new NullPointerException("[DeckManager] No StoredPreferences exist for OnQ");
 		}
 	}
 
@@ -91,14 +80,25 @@ public class DeckManager {
 				e.printStackTrace();
 			}
 			
-			responseReceived = false;
-			waiting = true;
+			ConnectionManager.responseReceived = false;
+			ConnectionManager.waiting = true;
 
 			Thread t = new Thread(new Runnable() {
 				// Thread to stop network calls on the UI thread
 				public void run() {
 					try {
-						CallServer("PUSH", username, password, jsonStr);
+						String token = prefs.getString("SecurityToken", "");
+						String asciiToken = "";
+						
+						for (int i = 0; i < token.length(); ++i)
+						{
+							asciiToken += (int)token.charAt(i);
+							if (i < token.length() - 1)
+							{
+								asciiToken += "+";
+							}
+						}
+						ConnectionManager.CallServer("PUSH", username, password, asciiToken, jsonStr);
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -107,18 +107,18 @@ public class DeckManager {
 
 			t.start();
 
-			while (waiting) {
-				if (responseReceived) {
+			while (ConnectionManager.waiting) {
+				if (ConnectionManager.responseReceived) {
 					/*if(t != null)
 					{
 						t.interrupt();
 						t = null;
 					}*/
-					waiting = false;
+					ConnectionManager.waiting = false;
 					// decode JSON object returned from server
-					if (DecodeJSONResponse(serverResponse) == 2)
+					if (DecodeJSONResponse(ConnectionManager.serverResponse) == 2)
 					{
-						ParseDecks(serverResponse);
+						ParseDecks(ConnectionManager.serverResponse);
 						if (decksParsed)
 						{
 							m.setqCardSetList(localSet);
@@ -126,6 +126,9 @@ public class DeckManager {
 						}
 					}
 				}
+			}
+			if (!ConnectionManager.responseReceived) {
+				toastMsg = ConnectionManager.toastMsg;
 			}
 		}
 	}
@@ -176,14 +179,14 @@ public class DeckManager {
 		final String password = prefs.getString("Password", "");
 
 		if (!username.isEmpty() && !password.isEmpty()) {
-			responseReceived = false;
-			waiting = true;
+			ConnectionManager.responseReceived = false;
+			ConnectionManager.waiting = true;
 
 			Thread t = new Thread(new Runnable() {
 				// Thread to stop network calls on the UI thread
 				public void run() {
 					try {
-						CallServer("PULL", username, password, null);
+						ConnectionManager.CallServer("PULL", username, password, null, null);
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -192,21 +195,21 @@ public class DeckManager {
 
 			t.start();
 
-			while (waiting) {
-				if (responseReceived) {
+			while (ConnectionManager.waiting) {
+				if (ConnectionManager.responseReceived) {
 					/*if(t != null)
 					{
 						t.interrupt();
 						t = null;
 					}*/
-					waiting = false;
+					ConnectionManager.waiting = false;
 					// decode JSON object returned from server
-					int ret = DecodeJSONResponse(serverResponse);
+					int ret = DecodeJSONResponse(ConnectionManager.serverResponse);
 					if (ret == 1 || ret == 2)
 					{
 						if (ret == 2)
 						{
-							ParseDecks(serverResponse);
+							ParseDecks(ConnectionManager.serverResponse);
 							if (decksParsed)
 							{
 								m.setqCardSetList(localSet);
@@ -217,50 +220,9 @@ public class DeckManager {
 					}
 				}
 			}
-		}
-	}
-
-	private void CallServer(String action, String username, String password, String jsonDecks) {
-		String onqURL = "";
-
-		if (action.equals("PULL")) {
-			onqURL = "http://192.168.0.29:1337/onq/qmobile/pullDecks/" + username + "/" + password;
-			//onqURL = "http://142.156.74.223:1337/onq/qmobile/pullDecks/"+username+"/"+password;
-		} else if (action.equals("PUSH")) {
-			String token = prefs.getString("SecurityToken", "");
-			String asciiToken = "";
-			
-			for (int i = 0; i < token.length(); ++i)
-			{
-				asciiToken += (int)token.charAt(i);
-				if (i < token.length() - 1)
-				{
-					asciiToken += "+";
-				}
+			if (!ConnectionManager.responseReceived) {
+				toastMsg = ConnectionManager.toastMsg;
 			}
-			
-			onqURL = "http://192.168.0.29:1337/onq/qmobile/uploadDecks/" + username + "/" + password
-					+ "/" + asciiToken + "/" + jsonDecks;
-			//onqURL = "http://142.156.74.223:1337/onq/qmobile/uploadDecks/" + username + "/" + password
-			//		+ "/" + asciiToken + "/" + jsonDecks;
-		}
-		HttpClient Client = new DefaultHttpClient();
-		try {
-			HttpGet httpget = new HttpGet(onqURL);
-			HttpResponse response = Client.execute(httpget);
-			StatusLine statusLine = response.getStatusLine();
-
-			if (statusLine.getStatusCode() == HttpStatus.SC_OK) {
-				ByteArrayOutputStream out = new ByteArrayOutputStream();
-				response.getEntity().writeTo(out);
-				out.close();
-				serverResponse = out.toString();
-				responseReceived = true;
-			}
-		} catch (Exception ex) {
-			ex.printStackTrace();
-			Log.e("CallServer", ex.getMessage());
-			waiting = false;
 		}
 	}
 

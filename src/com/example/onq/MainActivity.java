@@ -2,13 +2,12 @@ package com.example.onq;
 
 import java.util.ArrayList;
 import java.util.List;
-import android.media.ThumbnailUtils;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
-import android.widget.TextView;
+//import android.widget.TextView;
 import android.widget.Toast;
 import android.app.Activity;
 import android.content.Intent;
@@ -19,20 +18,21 @@ import android.graphics.Paint;
 
 public class MainActivity extends Activity {
 
-	private List<QCard> javaCardList = new ArrayList<QCard>();
+	/*private List<QCard> javaCardList = new ArrayList<QCard>();
 	private List<QCard> cPlusCardList = new ArrayList<QCard>();
-	private List<QCard> beerCardList = new ArrayList<QCard>();
+	private List<QCard> beerCardList = new ArrayList<QCard>();*/
 	private List<QCardSet> qCardSetList = new ArrayList<QCardSet>();
 	private ArrayList<QCard> cardList = new ArrayList<QCard>();
 	private Button studyButton;
 	private Button bumpButton;
 	private Button exitButton;
-	private TextView errorText;
+	//private TextView errorText;
 	private Paint paint;
 	public static Bitmap tmpB;
 	public static Activity tmpActivity;
 	private String theSetName;
 	private DeckManager deckManager;
+	private final int toastTime = 5;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -44,13 +44,14 @@ public class MainActivity extends Activity {
 		paint = new Paint();
         paint.setColor(Color.GREEN);
         tmpB = BitmapFactory.decodeResource(getResources(),R.drawable.card);
-        errorText = (TextView) findViewById(R.id.errorText);
+        //errorText = (TextView) findViewById(R.id.errorText);
         try {
         	deckManager = new DeckManager();
         }
         catch (NullPointerException npe) {
         	npe.printStackTrace();
-        	errorText.setText(npe.getMessage() + "\nPlease reinstall the OnQ app and try logging in again.");
+        	String error = npe.getMessage() + " Please reinstall the OnQ app and try logging in again.";
+        	Toast.makeText(MainActivity.this, error, toastTime).show();
         }
         
         /*setTheSetName("BeerQuestions");
@@ -64,9 +65,18 @@ public class MainActivity extends Activity {
 
 			@Override
 			public void onClick(View v) {
-				tmpActivity = MainActivity.this;
-				Intent intent = new Intent(MainActivity.this, FlipActivity.class);
-				startActivityForResult(intent,0);
+				if (!qCardSetList.isEmpty() && qCardSetList != null)
+				{
+					tmpActivity = MainActivity.this;
+					Intent intent = new Intent(MainActivity.this, FlipActivity.class);
+					startActivityForResult(intent,0);
+				}
+				else
+				{
+					String error = "You do not have any saved decks. Connect to the internet on your device" + 
+									" and connect to OnQ to download your decks";
+		        	Toast.makeText(MainActivity.this, error, toastTime).show();
+				}
 			}
 		});
 		
@@ -77,17 +87,17 @@ public class MainActivity extends Activity {
 
 			@Override
 			public void onClick(View v) {
-				//**********************************************
-				//->Set cardList to current QCardSet
-				//->Add check to Bump to see if received deck already exists in the users decks
-				//**********************************************
-				//if (userAllowsNetworkUser)
-				deckManager.PullDecksFromServer();
-				Toast.makeText(MainActivity.this, deckManager.getToastMessage(), Toast.LENGTH_LONG).show();
-				deckManager.SaveDecksToPrefs();
-				//errorText.setText(deckManager.getToastMessage());
-				//else
-				//deckManager.LoadDecksFromPrefs();
+				if (ConnectionManager.ServerIsReachable(MainActivity.tmpActivity.getApplicationContext()))
+				{
+					deckManager.PullDecksFromServer();
+					deckManager.SaveDecksToPrefs();
+					Toast.makeText(MainActivity.this, deckManager.getToastMessage(), toastTime).show();
+				}
+				else
+				{
+					Toast.makeText(MainActivity.this, ConnectionManager.toastMsg, toastTime).show();
+					deckManager.LoadDecksFromPrefs();
+				}
 				
 				Intent intent = new Intent(MainActivity.this, BumpDeck.class);
 				intent = intent.putExtra("Cards", cardList);
@@ -112,12 +122,12 @@ public class MainActivity extends Activity {
 
 			@Override
 			public void onClick(View v) {
-				deckManager.LoadDecksFromPrefs();
-				//errorText.setText(deckManager.getToastMessage());
-				deckManager.PushDecksToServer();
-				//Display toast then make the app wait to close so the user sees the message
-				Toast.makeText(MainActivity.this, deckManager.getToastMessage(), Toast.LENGTH_LONG).show();
-				//Add optional offline save
+				if (ConnectionManager.ServerIsReachable(MainActivity.tmpActivity.getApplicationContext()))
+				{
+					deckManager.PushDecksToServer();
+				}
+				Toast.makeText(MainActivity.this, deckManager.getToastMessage(), toastTime).show();
+				deckManager.SaveDecksToPrefs();
 				
 				Intent intent = new Intent(Intent.ACTION_MAIN);
 				intent.addCategory(Intent.CATEGORY_HOME);
@@ -129,12 +139,12 @@ public class MainActivity extends Activity {
 	
 	@Override
 	public void onBackPressed(){
-		deckManager.LoadDecksFromPrefs();
-		//errorText.setText(deckManager.getToastMessage());
-		deckManager.PushDecksToServer();
-		//Display toast then make the app wait to close so the user sees the message
-		Toast.makeText(MainActivity.this, deckManager.getToastMessage(), Toast.LENGTH_LONG).show();
-		//Add optional offline save
+		if (ConnectionManager.ServerIsReachable(MainActivity.tmpActivity.getApplicationContext()))
+		{
+			deckManager.PushDecksToServer();
+		}
+		Toast.makeText(MainActivity.this, deckManager.getToastMessage(), toastTime).show();
+		deckManager.SaveDecksToPrefs();
 		
 		Intent intent = new Intent(Intent.ACTION_MAIN);
 		intent.addCategory(Intent.CATEGORY_HOME);
@@ -142,7 +152,7 @@ public class MainActivity extends Activity {
 		startActivity(intent);
 	}
 	
-	private void populateBeerCards(){
+/*	private void populateBeerCards(){
 		QCard tmp = new QCard();
 		
 		Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.beer);
@@ -295,7 +305,7 @@ public class MainActivity extends Activity {
 		
 		qCardSetList.add(tmpSet);
     	
-    }
+    }*/
 	public List<QCardSet> getqCardSetList() {
 		return qCardSetList;
 	}

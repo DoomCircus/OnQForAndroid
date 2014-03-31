@@ -34,13 +34,13 @@
         android:textColor="#fab807"
         android:text="EXIT" />
 
-    <TextView
+    <!-- <TextView
         android:id="@+id/errorText"
         android:layout_width="400dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
         android:layout_marginTop="20dp"
         android:textColor="#fab807"
-        android:textAppearance="?android:attr/textAppearanceMedium" />
+        android:textAppearance="?android:attr/textAppearanceMedium" /> -->
 
 </LinearLayout>
