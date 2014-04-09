@@ -8,7 +8,6 @@ import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-import org.json.JSONTokener;
 
 import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
@@ -55,16 +54,20 @@ public class DeckManager {
 	}
 	
 	public void SaveDecksToPrefs() {
-		jsonStr = EncodeJSONDecks();
-		if (jsonStr.equals("FAIL"))
+		for(QCardSet qcs : localSet)
 		{
-			toastMsg = "Your decks failed to save to app data.";
+			jsonStr = EncodeJSONDecks(qcs);
+			if (jsonStr.equals("FAIL"))
+			{
+				toastMsg = "Your decks failed to save to app data.";
+			}
+			else
+			{
+				jsonStr += jsonStr;
+			}
 		}
-		else
-		{
-			prefs.edit().putString("UserDecks", jsonStr).commit();
-			//toastMsg = "Your decks were successfully saved to app data!";
-		}
+		prefs.edit().putString("UserDecks", jsonStr).commit();
+		//toastMsg = "Your decks were successfully saved to app data!";
 	}
 	
 	public void PushDecksToServer() {
@@ -73,100 +76,94 @@ public class DeckManager {
 		final String password = prefs.getString("Password", "");
 		
 		if (!username.isEmpty() && !password.isEmpty()) {
-			jsonStr = EncodeJSONDecks();
-			try {
-				jsonStr = URLEncoder.encode(jsonStr, "ISO-8859-1");
-			} catch (UnsupportedEncodingException e) {
-				e.printStackTrace();
-			}
-			
-			ConnectionManager.responseReceived = false;
-			ConnectionManager.waiting = true;
-
-			Thread t = new Thread(new Runnable() {
-				// Thread to stop network calls on the UI thread
-				public void run() {
-					try {
-						String token = prefs.getString("SecurityToken", "");
-						String asciiToken = "";
-						
-						for (int i = 0; i < token.length(); ++i)
-						{
-							asciiToken += (int)token.charAt(i);
-							if (i < token.length() - 1)
+			for(QCardSet qcs : localSet)
+			{
+				jsonStr = EncodeJSONDecks(qcs);
+				try {
+					jsonStr = URLEncoder.encode(jsonStr, "ISO-8859-1");
+				} catch (UnsupportedEncodingException e) {
+					e.printStackTrace();
+				}
+				
+				ConnectionManager.responseReceived = false;
+				ConnectionManager.waiting = true;
+	
+				Thread t = new Thread(new Runnable() {
+					// Thread to stop network calls on the UI thread
+					public void run() {
+						try {
+							String token = prefs.getString("SecurityToken", "");
+							String asciiToken = "";
+							
+							for (int i = 0; i < token.length(); ++i)
 							{
-								asciiToken += "+";
+								asciiToken += (int)token.charAt(i);
+								if (i < token.length() - 1)
+								{
+									asciiToken += "+";
+								}
 							}
+							ConnectionManager.CallServer("PUSH", username, password, asciiToken, jsonStr);
+						} catch (Exception e) {
+							e.printStackTrace();
 						}
-						ConnectionManager.CallServer("PUSH", username, password, asciiToken, jsonStr);
-					} catch (Exception e) {
-						e.printStackTrace();
 					}
-				}
-			});
-
-			t.start();
-
-			while (ConnectionManager.waiting) {
-				if (ConnectionManager.responseReceived) {
-					/*if(t != null)
-					{
-						t.interrupt();
-						t = null;
-					}*/
-					ConnectionManager.waiting = false;
-					// decode JSON object returned from server
-					if (DecodeJSONResponse(ConnectionManager.serverResponse) == 2)
-					{
-						ParseDecks(ConnectionManager.serverResponse);
-						if (decksParsed)
+				});
+	
+				t.start();
+	
+				boolean responseOK = false;
+				
+				while (ConnectionManager.waiting) {
+					if (ConnectionManager.responseReceived) {
+						/*if(t != null)
 						{
-							m.setqCardSetList(localSet);
-							//toastMsg = "Your decks were successfully saved to the OnQ server!";
+							t.interrupt();
+							t = null;
+						}*/
+						ConnectionManager.waiting = false;
+						// decode JSON object returned from server
+						if (ConnectionManager.DecodeJSONResponse(ConnectionManager.serverResponse) == 1)
+						{
+							responseOK = true;
+							toastMsg = ConnectionManager.toastMsg;
 						}
 					}
 				}
-			}
-			if (!ConnectionManager.responseReceived) {
-				toastMsg = ConnectionManager.toastMsg;
+				if (!responseOK)
+				{
+					toastMsg = ConnectionManager.toastMsg;
+				}
 			}
 		}
 	}
 	
-	public String EncodeJSONDecks() {
+	public String EncodeJSONDecks(QCardSet qcs) {
 		try {
 			JSONArray userDecks = new JSONArray();
-			for(QCardSet qcs : localSet)
+			JSONObject qDeck = new JSONObject();
+			
+			qDeck.put("deckID", qcs.getDeckID());
+			qDeck.put("deckType", qcs.getDeckType());
+			qDeck.put("title", qcs.getCardListName());
+			qDeck.put("description", qcs.getDescription());
+			qDeck.put("privatePublic", qcs.getPrivatePublic());
+			
+			JSONArray qDeckCards = new JSONArray();
+			List<QCard> cards = qcs.getqCardsList();
+			for(QCard qc : cards)
 			{
-				JSONObject completeDeck = new JSONObject();
-				JSONObject Qdecks = new JSONObject();
+				JSONObject qCard = new JSONObject();
 				
-				Qdecks.put("deckID", qcs.getDeckID());
-				Qdecks.put("deckType", qcs.getDeckType());
-				Qdecks.put("title", qcs.getCardListName());
-				Qdecks.put("description", qcs.getDescription());
-				Qdecks.put("privatePublic", qcs.getPrivatePublic());
+				qCard.put("cardID", qc.getCardID());
+				qCard.put("cardType", qc.getSetName());
+				qCard.put("question", qc.getQuestion());
+				qCard.put("answer", qc.getAnswer());
 				
-				completeDeck.put("Qdecks", Qdecks);
-				
-				JSONArray Qdeckcards = new JSONArray();
-				List<QCard> cards = qcs.getqCardsList();
-				for(QCard qc : cards)
-				{
-					JSONObject Qcards = new JSONObject();
-					
-					Qcards.put("cardID", qc.getCardID());
-					Qcards.put("cardType", qc.getSetName());
-					Qcards.put("question", qc.getQuestion());
-					Qcards.put("answer", qc.getAnswer());
-					
-					JSONObject tmp = new JSONObject();
-					tmp.put("Qcards", Qcards);
-					Qdeckcards.put(tmp);
-				}
-				completeDeck.put("Qdeckcards", Qdeckcards);
-				userDecks.put(completeDeck);
+				qDeckCards.put(qCard);
 			}
+			qDeck.put("Qdeckcards", qDeckCards);
+			userDecks.put(qDeck);
 			return userDecks.toString();
 		} catch (JSONException je) {
 			je.printStackTrace();
@@ -195,6 +192,8 @@ public class DeckManager {
 
 			t.start();
 
+			boolean responseOK = false;
+			
 			while (ConnectionManager.waiting) {
 				if (ConnectionManager.responseReceived) {
 					/*if(t != null)
@@ -204,56 +203,23 @@ public class DeckManager {
 					}*/
 					ConnectionManager.waiting = false;
 					// decode JSON object returned from server
-					int ret = DecodeJSONResponse(ConnectionManager.serverResponse);
-					if (ret == 1 || ret == 2)
+					if (ConnectionManager.DecodeJSONResponse(ConnectionManager.serverResponse) == 2)
 					{
-						if (ret == 2)
+						responseOK = true;
+						ParseDecks(ConnectionManager.serverResponse);
+						if (decksParsed)
 						{
-							ParseDecks(ConnectionManager.serverResponse);
-							if (decksParsed)
-							{
-								m.setqCardSetList(localSet);
-								//Update StoredPreferences with parsed decks
-								toastMsg = "Your decks were successfully loaded from the OnQ server!";
-							}
+							m.setqCardSetList(localSet);
+							//Update StoredPreferences with parsed decks
+							toastMsg = "Your decks were successfully loaded from the OnQ server!";
 						}
 					}
 				}
 			}
-			if (!ConnectionManager.responseReceived) {
+			if (!responseOK)
+			{
 				toastMsg = ConnectionManager.toastMsg;
 			}
-		}
-	}
-
-	public int DecodeJSONResponse(String jsonStr) {
-		try {
-			Object obj = new JSONTokener(jsonStr).nextValue();
-			
-			if (obj instanceof JSONObject)
-			{
-				return 2;
-			}
-			else if (obj instanceof JSONArray)
-			{
-				//Parse the response code from the server
-				JSONArray jsonArr = new JSONArray(jsonStr);
-				
-				if (jsonArr.getString(0).equals("Error")) {
-					toastMsg = jsonArr.getString(1);
-					return 0;
-				} else if (jsonArr.getString(0).equals("Success")) {
-					toastMsg = jsonArr.getString(1);
-					return 1;
-				}
-			}
-			toastMsg = "The OnQ server returned an unexpected error, please contact an OnQ administrator.";
-			return -1;
-
-		} catch (JSONException je) {
-			je.printStackTrace();
-			toastMsg = je.getMessage();
-			return -1;
 		}
 	}
 	
@@ -261,24 +227,14 @@ public class DeckManager {
 	{
 		decksParsed = false;
 		try {
-			int numDecks = countMatches(jsonStr, "|");
-			String[] deckStrings = new String[numDecks + 1];
-			int startOfDeck = 0;
+			// Convert String to json array
+			JSONArray jsonDecks = new JSONArray(jsonStr);
+			List<QCardSet> newUserDecks = new ArrayList<QCardSet>();
 			
-			//Parse decks (String.split() had unexpected behaviour, so parsing the string manually)
-			for (int i = 0; i < numDecks; ++i)
+			for (int i = 0; i < jsonDecks.length(); ++i)
 			{
-				int endOfDeck = jsonStr.indexOf("|", startOfDeck);
-				deckStrings[i] = jsonStr.substring(startOfDeck, endOfDeck);
-				startOfDeck = endOfDeck + 1;
-			}
-			deckStrings[numDecks] = jsonStr.substring(startOfDeck, jsonStr.length());
-			
-			for (int i = 0; i < deckStrings.length; ++i)
-			{
-				// Convert String to json object
-				JSONObject jsonDeck = new JSONObject(deckStrings[i]);
-				JSONObject deck = jsonDeck.getJSONObject("Qdecks");
+				//Pull out each deck one at a time
+				JSONObject deck = jsonDecks.getJSONObject(i);
 				
 				//Parse deck data from JSONObject to QCardSet
 				QCardSet newDeck = new QCardSet();
@@ -288,13 +244,13 @@ public class DeckManager {
 				newDeck.setDescription(deck.getString("description"));
 				newDeck.setPrivatePublic(deck.getInt("privatePublic"));
 				
-				JSONArray deckCards = jsonDeck.getJSONArray("Qdeckcards");
+				JSONArray deckCards = deck.getJSONArray("Qdeckcards");
 				List<QCard> newCards = new ArrayList<QCard>();
 				
 				//Parse card data from JSONArray of cards into List<QCard>
 				for (int j = 0; j < deckCards.length(); ++j)
 				{
-					JSONObject card = deckCards.getJSONObject(j).getJSONObject("Qcards");
+					JSONObject card = deckCards.getJSONObject(j);
 					QCard newCard = new QCard();
 					
 					newCard.setCardID(card.getInt("cardID"));
@@ -304,37 +260,50 @@ public class DeckManager {
 					
 					newCards.add(newCard);
 				}
-				
-				//Check if the deck already exists in the local set
-				for (QCardSet qcs : localSet)
+				newDeck.setqCardsList(newCards);
+				newUserDecks.add(newDeck);
+			}
+			
+			List<QCardSet> currentSet = new ArrayList<QCardSet>();
+			
+			//Check if the deck already exists in the local set
+			for (QCardSet qcs : newUserDecks)
+			{
+				boolean deckExists = false;
+				for (QCardSet lqcs : localSet)
 				{
-					if (qcs.getDeckID() == newDeck.getDeckID())
+					if (lqcs.getDeckID() == qcs.getDeckID())
 					{
-						List<QCard> oldCards = qcs.getqCardsList();
+						deckExists = true;
+						QCardSet localDeck = lqcs;
+						List<QCard> localCards = localDeck.getqCardsList();
+						List<QCard> newCards = qcs.getqCardsList();
 						//Check if the card already exists in the current deck
-						for (QCard oldQC : oldCards)
+						for (QCard newQC : newCards)
 						{
-							boolean exists = false;
-							for (QCard newQC : newCards)
+							boolean cardExists = false;
+							for (QCard localQC : localCards)
 							{
-								if (oldQC.getCardID() == newQC.getCardID())
+								if (localQC.getCardID() == newQC.getCardID())
 								{
-									exists = true;
-									break;
+									cardExists = true;
 								}
 							}
-							if (!exists)
+							if (!cardExists)
 							{
-								newCards.add(oldQC);
+								localCards.add(newQC);
 							}
 						}
-						newDeck.setqCardsList(newCards);
-						localSet.remove(qcs);
-						break;
+						localDeck.setqCardsList(localCards);
+						currentSet.add(localDeck);
 					}
 				}
-				localSet.add(newDeck);
+				if (!deckExists)
+				{
+					currentSet.add(qcs);
+				}
 			}
+			localSet = currentSet;
 			decksParsed = true;
 		} catch (JSONException je) {
 			je.printStackTrace();
@@ -346,7 +315,7 @@ public class DeckManager {
 	//Poster: Casey - http://stackoverflow.com/users/147373/casey
 	//Poster's Source: http://www.docjar.com/html/api/org/apache/commons/lang/StringUtils.java.html
 	//Date Used: March 10, 2014
-	public static int countMatches(String str, String sub) {
+	/*public static int countMatches(String str, String sub) {
 	    if (str.isEmpty() || sub.isEmpty()) {
 	        return 0;
 	    }
@@ -357,5 +326,10 @@ public class DeckManager {
 	        idx += sub.length();
 	    }
 	    return count;
+	}*/
+	
+	public void ErasePrefs()
+	{
+		prefs.edit().clear().apply();
 	}
 }

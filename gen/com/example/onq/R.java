@@ -55,10 +55,11 @@ public final class R {
         public static final int HostButton=0x7f0b0007;
         public static final int JoinButton=0x7f0b0008;
         public static final int LoginButton=0x7f0b000e;
+        public static final int LogoutButton=0x7f0b0013;
         public static final int SingleButton=0x7f0b0009;
         public static final int StudyButton=0x7f0b0010;
-        public static final int action_settings=0x7f0b0014;
-        public static final int action_shuffle=0x7f0b0015;
+        public static final int action_settings=0x7f0b0015;
+        public static final int action_shuffle=0x7f0b0016;
         public static final int backView=0x7f0b0005;
         public static final int bump=0x7f0b0000;
         public static final int errorText=0x7f0b000f;
@@ -67,7 +68,7 @@ public final class R {
         public static final int password=0x7f0b000d;
         public static final int textView1=0x7f0b000a;
         public static final int textView2=0x7f0b000c;
-        public static final int tv=0x7f0b0013;
+        public static final int tv=0x7f0b0014;
         public static final int txt1=0x7f0b0004;
         public static final int txt2=0x7f0b0006;
         public static final int username=0x7f0b000b;

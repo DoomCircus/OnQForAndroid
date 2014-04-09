@@ -24,6 +24,7 @@ public class CheckUser extends Activity {
 			intent = new Intent(CheckUser.this, Login.class);
 		}
 		startActivity(intent);
+		finish();
 	}
 	
 	protected boolean TokenPresent()

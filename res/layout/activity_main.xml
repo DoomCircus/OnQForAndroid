@@ -12,7 +12,7 @@
         android:layout_width="300dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:layout_marginTop="80dp"
+        android:layout_marginTop="50dp"
         android:textColor="#fab807"
         android:text="STUDY" />
 
@@ -33,6 +33,15 @@
         android:layout_marginTop="20dp"
         android:textColor="#fab807"
         android:text="EXIT" />
+    
+    <Button
+        android:id="@+id/LogoutButton"
+        android:layout_width="300dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="20dp"
+        android:textColor="#fab807"
+        android:text="SIGN OUT" />
 
     <!-- <TextView
         android:id="@+id/errorText"

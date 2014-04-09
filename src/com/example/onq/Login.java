@@ -23,10 +23,6 @@ public class Login extends Activity {
 	protected Intent intent;
 	private final int toastTime = 5;
 	
-	/*protected volatile boolean tokenReceived;
-	protected volatile boolean waiting;
-	protected volatile String error;*/
-	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -74,6 +70,8 @@ public class Login extends Activity {
 				
 				t.start();
 				
+				boolean loginSucceeded = false;
+				
 				while(ConnectionManager.waiting)
 				{
 					if(ConnectionManager.responseReceived)
@@ -85,25 +83,20 @@ public class Login extends Activity {
 						}*/
 						ConnectionManager.waiting = false;
 						
-						String tmp = ConnectionManager.serverResponse.substring(1,
-								ConnectionManager.serverResponse.length()-1);
-						String[]resPieces = tmp.split(",");
-						
-						for (int i = 0; i < resPieces.length; ++i)
+						if (ConnectionManager.DecodeJSONResponse(ConnectionManager.serverResponse) == 2)
 						{
-							resPieces[i] = resPieces[i].substring(1, resPieces[i].length()-1);
+							loginSucceeded = true;
+							prefs.edit().putString("SecurityToken", ConnectionManager.toastMsg).commit();
+							prefs.edit().putString("Username", usernameText.getText().toString()).commit();
+							prefs.edit().putString("Password", passwordText.getText().toString()).commit();
+							
+							Intent intent = new Intent(Login.this, MainActivity.class);
+							startActivity(intent);
+							finish();
 						}
-						
-						if (resPieces[0].equals("SecurityToken"))
+						else if (ConnectionManager.DecodeJSONResponse(ConnectionManager.serverResponse) == 0)
 						{
-							prefs.edit().putString("SecurityToken", resPieces[1]).commit();
-							prefs.edit().putString("Username", username).commit();
-							prefs.edit().putString("Password", password).commit();
-							ConnectionManager.responseReceived = true;
-						}
-						else if (resPieces[0].equals("Error"))
-						{
-							ConnectionManager.toastMsg = resPieces[1];
+							loginSucceeded = false;
 							break;
 						}
 						else
@@ -112,14 +105,14 @@ public class Login extends Activity {
 									"Unexpected issue encountered, please contact the OnQ development team.";
 							break;
 						}
-						
-						Intent intent = new Intent(Login.this, MainActivity.class);
-						startActivity(intent);
 					}
 				}
 				
-				errorText.setText("[Login]Exception occured while attempting to login: "+
+				if (!loginSucceeded)
+				{
+					errorText.setText("[Login]Exception occured while attempting to login: "+
 									ConnectionManager.toastMsg);
+				}
 			}
 		});
 	}
@@ -130,6 +123,7 @@ public class Login extends Activity {
 		intent.addCategory(Intent.CATEGORY_HOME);
 		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 		startActivity(intent);
+		finish();
 	}
 
 }

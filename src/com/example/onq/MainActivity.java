@@ -2,6 +2,7 @@ package com.example.onq;
 
 import java.util.ArrayList;
 import java.util.List;
+
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
@@ -26,6 +27,7 @@ public class MainActivity extends Activity {
 	private Button studyButton;
 	private Button bumpButton;
 	private Button exitButton;
+	private Button logoutButton;
 	//private TextView errorText;
 	private Paint paint;
 	public static Bitmap tmpB;
@@ -69,12 +71,11 @@ public class MainActivity extends Activity {
 				{
 					tmpActivity = MainActivity.this;
 					Intent intent = new Intent(MainActivity.this, FlipActivity.class);
-					startActivityForResult(intent,0);
+					startActivity(intent);
 				}
 				else
 				{
-					String error = "You do not have any saved decks. Connect to the internet on your device" + 
-									" and connect to OnQ to download your decks";
+					String error = "No deck selected for studying.";
 		        	Toast.makeText(MainActivity.this, error, toastTime).show();
 				}
 			}
@@ -87,7 +88,7 @@ public class MainActivity extends Activity {
 
 			@Override
 			public void onClick(View v) {
-				if (ConnectionManager.ServerIsReachable(MainActivity.tmpActivity.getApplicationContext()))
+				if (ConnectionManager.IsOnline(MainActivity.this.getApplicationContext()))
 				{
 					deckManager.PullDecksFromServer();
 					deckManager.SaveDecksToPrefs();
@@ -96,7 +97,7 @@ public class MainActivity extends Activity {
 				else
 				{
 					Toast.makeText(MainActivity.this, ConnectionManager.toastMsg, toastTime).show();
-					deckManager.LoadDecksFromPrefs();
+					//deckManager.LoadDecksFromPrefs();
 				}
 				
 				Intent intent = new Intent(MainActivity.this, BumpDeck.class);
@@ -122,11 +123,10 @@ public class MainActivity extends Activity {
 
 			@Override
 			public void onClick(View v) {
-				if (ConnectionManager.ServerIsReachable(MainActivity.tmpActivity.getApplicationContext()))
+				if (ConnectionManager.IsOnline(MainActivity.this.getApplicationContext()))
 				{
 					deckManager.PushDecksToServer();
 				}
-				Toast.makeText(MainActivity.this, deckManager.getToastMessage(), toastTime).show();
 				deckManager.SaveDecksToPrefs();
 				
 				Intent intent = new Intent(Intent.ACTION_MAIN);
@@ -135,33 +135,49 @@ public class MainActivity extends Activity {
 				startActivity(intent);
 			}
 		});
+		
+		logoutButton = (Button) findViewById(R.id.LogoutButton);
+		
+		logoutButton.setOnClickListener(new View.OnClickListener() {
+
+			@Override
+			public void onClick(View v) {
+				if (ConnectionManager.IsOnline(MainActivity.this.getApplicationContext()))
+				{
+					deckManager.PushDecksToServer();
+				}
+				deckManager.ErasePrefs();
+				
+				Intent intent = new Intent(Intent.ACTION_MAIN);
+				intent.addCategory(Intent.CATEGORY_HOME);
+				intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+				startActivity(intent);
+				finish();
+			}
+		});
 	}
 	
 	@Override
 	public void onBackPressed(){
-		if (ConnectionManager.ServerIsReachable(MainActivity.tmpActivity.getApplicationContext()))
+		if (ConnectionManager.IsOnline(MainActivity.this.getApplicationContext()))
 		{
 			deckManager.PushDecksToServer();
 		}
-		Toast.makeText(MainActivity.this, deckManager.getToastMessage(), toastTime).show();
 		deckManager.SaveDecksToPrefs();
 		
 		Intent intent = new Intent(Intent.ACTION_MAIN);
 		intent.addCategory(Intent.CATEGORY_HOME);
 		intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 		startActivity(intent);
+		finish();
 	}
 	
-/*	private void populateBeerCards(){
+	/*private void populateBeerCards(){
 		QCard tmp = new QCard();
-		
-		Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.beer);
-		Bitmap currentThumb = ThumbnailUtils.extractThumbnail(bm, 50, 50);
 		
 		tmp.setCardID(1);
 		tmp.setQuestion("The ancient Babylonians were the first to brew beer. If you brewed a bad batch back then what was the punishment?");
 		tmp.setAnswer("If you brewed a bad batch you would be drowned in it.");
-		tmp.setqPic(currentThumb);
 		tmp.setSetName("BeerQuestions");
 		beerCardList.add(tmp);
 		
@@ -169,7 +185,6 @@ public class MainActivity extends Activity {
 		tmp.setCardID(2);
 		tmp.setQuestion("Why should you store your beer upright?");
 		tmp.setAnswer("Upright storage minimizes oxidation and contamination from the cap.");
-		tmp.setqPic(currentThumb);
 		tmp.setSetName("BeerQuestions");
 		beerCardList.add(tmp);
 		
@@ -177,7 +192,6 @@ public class MainActivity extends Activity {
 		tmp.setCardID(3);
 		tmp.setQuestion("What did the Vikings believe would provide them with an endless supply of beer when they reached Valhalla?");
 		tmp.setAnswer("A giant goat whose udders provided the beer.");
-		tmp.setqPic(currentThumb);
 		tmp.setSetName("BeerQuestions");
 		beerCardList.add(tmp);
 		
@@ -185,7 +199,6 @@ public class MainActivity extends Activity {
 		tmp.setCardID(4);
 		tmp.setQuestion("When prohibition ended in the US what was the first thing President Roosevelt said?");
 		tmp.setAnswer("What America needs now is a drink-Roosevelt.");
-		tmp.setqPic(currentThumb);
 		tmp.setSetName("BeerQuestions");
 		beerCardList.add(tmp);
 		
@@ -193,7 +206,6 @@ public class MainActivity extends Activity {
 		tmp.setCardID(5);
 		tmp.setQuestion("What is the most expensive kind of beer sold in the world today?");
 		tmp.setAnswer("The most expensive beer sold in the world today is Vielle Bon Secours selling at approximately 1000 dollars per bottle.");
-		tmp.setqPic(currentThumb);
 		tmp.setSetName("BeerQuestions");
 		beerCardList.add(tmp);
 		

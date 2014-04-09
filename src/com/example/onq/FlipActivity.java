@@ -1,6 +1,7 @@
 package com.example.onq;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import com.example.onq.AnimationFactory.FlipDirection;
 
@@ -10,8 +11,6 @@ import android.app.Activity;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -50,6 +49,7 @@ public class FlipActivity extends Activity implements SensorEventListener, Gestu
 	
 	private ImageView first;
 	
+	@SuppressWarnings("deprecation")
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -73,8 +73,12 @@ public class FlipActivity extends Activity implements SensorEventListener, Gestu
 			}
 			i++;
 		}
-		textview1.setText("Q:" + m.getqCardSetList().get(cardSetId).getqCardsList().get(questionCounter).getQuestion());
-		textview2.setText("A:" + m.getqCardSetList().get(cardSetId).getqCardsList().get(answerCounter).getAnswer());
+		List<QCardSet> qCardSetList = m.getqCardSetList();
+		QCardSet qCardSet = qCardSetList.get(cardSetId);
+		List<QCard> qCards = qCardSet.getqCardsList();
+		QCard qCard = qCards.get(questionCounter);
+		textview1.setText("Q:" + qCard.getQuestion());
+		textview2.setText("A:" + qCard.getAnswer());
 		Bitmap bm = BitmapFactory.decodeResource(getResources(), R.drawable.beer);
 		Bitmap currentThumb = ThumbnailUtils.extractThumbnail(bm, 100, 100);
 		first.setImageBitmap(currentThumb);
@@ -150,7 +154,7 @@ public class FlipActivity extends Activity implements SensorEventListener, Gestu
 	protected void onResume() {
 		// TODO Auto-generated method stub
 		super.onResume();
-		sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),sensorManager.SENSOR_DELAY_NORMAL);	
+		sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER),SensorManager.SENSOR_DELAY_NORMAL);	
 	}
 
 	@Override

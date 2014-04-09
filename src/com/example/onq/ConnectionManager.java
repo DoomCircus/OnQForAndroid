@@ -2,10 +2,9 @@ package com.example.onq;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketAddress;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.URL;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
@@ -16,6 +15,10 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
 import org.apache.http.params.HttpConnectionParams;
 import org.apache.http.params.HttpParams;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 
 import android.content.Context;
 import android.net.ConnectivityManager;
@@ -24,10 +27,8 @@ import android.util.Log;
 
 public class ConnectionManager {
 	
-	//private final static String serverAddress = "192.168.0.29";
-	private final static String serverAddress = "142.156.112.23";
-	private final static int serverPort = 1337;
-	private final static int timeout = 5000;
+	private final static String serverURL = "http://www.studywithonq.com";
+	private final static int timeout = 10000;
 	private static boolean serverReachable;
 	public static String toastMsg;
 	public static String serverResponse;
@@ -49,44 +50,35 @@ public class ConnectionManager {
 			Thread t = new Thread(new Runnable() {
 				// Thread to stop network calls on the UI thread
 				public void run() {
-					Socket socket = new Socket();
 					try {
-					    SocketAddress socketAddress = new InetSocketAddress(InetAddress.getByName(serverAddress), serverPort);					    
-				        socket.connect(socketAddress, timeout);
-					} catch (IOException e) {
-						e.printStackTrace();
-						Log.e("ServerIsReachable", e.getMessage());
-						toastMsg = "Server is unreachable: " + e.getMessage();
-						serverReachable = false;
-						waiting = false;
-					} catch (Exception e) {
-						e.printStackTrace();
-						Log.e("ServerIsReachable", e.getMessage());
-						toastMsg = "Server is unreachable: " + e.getMessage();
-						serverReachable = false;
-						waiting = false;
-					} finally {
-						// Always close the socket after we're done
-				        if (socket.isConnected()) {
-				        	toastMsg = "Server is reachable";
+			            URL url = new URL(serverURL);
+			            HttpURLConnection urlc = (HttpURLConnection) url.openConnection();
+			            urlc.setConnectTimeout(timeout);
+			            urlc.connect();
+			            if (urlc.getResponseCode() == 200) { // 200 = "OK" code (http connection is fine).
+			                Log.e("ServerIsReachable", "Success!");
+			                toastMsg = "Server is reachable";
 							serverReachable = true;
 							waiting = false;
-				            try {
-				                socket.close();
-				            }
-				            catch (IOException e) {
-				            	e.printStackTrace();
-								Log.e("ServerIsReachable", e.getMessage());
-								toastMsg = e.getMessage();
-				            }
-				        }
-				        else
-				        {
-				        	toastMsg = "Server is unreachable";
+			            } else {
+			            	Log.e("ServerIsReachable", "Failure!");
+			            	toastMsg = "Server replied with response code: " + urlc.getResponseCode();
 							serverReachable = false;
 							waiting = false;
-				        }
-					}
+			            }
+			        } catch (MalformedURLException e) {
+			        	e.printStackTrace();
+						Log.e("ServerIsReachable", e.getMessage());
+						toastMsg = "Server is unreachable: " + e.getMessage();
+						serverReachable = false;
+						waiting = false;
+			        } catch (IOException e) {
+			        	e.printStackTrace();
+						Log.e("ServerIsReachable", e.getMessage());
+						toastMsg = "Server is unreachable: " + e.getMessage();
+						serverReachable = false;
+						waiting = false;
+			        }
 				}
 			});
 
@@ -111,13 +103,13 @@ public class ConnectionManager {
 		String onqURL = "";
 		
 		if (action.equals("LOGIN")) {
-			onqURL = "http://" + serverAddress + ":" + serverPort + "/onq/qmobile/login/"+username+"/"+password;
+			onqURL = serverURL + "/qmobile/login/"+username+"/"+password;
 		}
 		else if (action.equals("PULL")) {
-			onqURL = "http://" + serverAddress + ":" + serverPort + "/onq/qmobile/pullDecks/" + username + "/" + password;
+			onqURL = serverURL + "/qmobile/pullDecks/" + username + "/" + password;
 		}
 		else if (action.equals("PUSH")) {
-			onqURL = "http://" + serverAddress + ":" + serverPort + "/onq/qmobile/uploadDecks/" + username + "/" + password
+			onqURL = serverURL + "/qmobile/uploadDecks/" + username + "/" + password
 					+ "/" + asciiToken + "/" + jsonDecks;
 		}
 		try {
@@ -139,11 +131,56 @@ public class ConnectionManager {
 				serverResponse = out.toString();
 				responseReceived = true;
 			}
+			else
+			{
+				Log.e("CallServer", statusLine.getReasonPhrase());
+				toastMsg = statusLine.getReasonPhrase();
+				waiting = false;
+			}
 		} catch (Exception ex) {
 			ex.printStackTrace();
 			Log.e("CallServer", ex.getMessage());
 			toastMsg = ex.getMessage();
 			waiting = false;
+		}
+	}
+	
+	public static int DecodeJSONResponse(String jsonStr) {
+		try {
+			Object obj = new JSONTokener(jsonStr).nextValue();
+			
+			if (obj instanceof JSONObject)
+			{
+				//Response object returned, not JSONArray of deck objects
+				//Parse the response code from the server
+				JSONObject jsonObj = new JSONObject(jsonStr);
+				
+				if (jsonObj.getString("0").equals("Error")) {
+					toastMsg = jsonObj.getString("1");
+					return 0;
+				} else if (jsonObj.getString("0").equals("Success")) {
+					toastMsg = jsonObj.getString("1");
+					return 1;
+				} else if (jsonObj.getString("0").equals("SecurityToken")) {
+					toastMsg = jsonObj.getString("1");
+					return 2;
+				} else {
+					toastMsg = "The OnQ server returned an unexpected error, please contact an OnQ administrator.";
+					return -1;
+				}
+			}
+			else if (obj instanceof JSONArray)
+			{
+				//JSONArray of deck objects present
+				return 2;
+			}
+			toastMsg = "The OnQ server returned an unexpected error, please contact an OnQ administrator.";
+			return -1;
+
+		} catch (JSONException je) {
+			je.printStackTrace();
+			toastMsg = je.getMessage();
+			return -1;
 		}
 	}
 }
